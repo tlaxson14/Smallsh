@@ -22,16 +22,20 @@ int main()
 	bool finished = false;
 	char input[MAX_CHARS];
 	int count = 0;
+	size_t lineBuffer = MAX_CHARS;
+	size_t chars = 0;
 
 	do{
-		printf("In do while: %d\n", count);
 		sleep(1);
 		printf(": ");
-		gets(input);
-		printf("Printing input: %s\n", input);
+		fflush(stdout);
+		chars = getline(&input, &lineBuffer, stdin);
+		printf("Number of chars: %zu\n", chars);
+		fflush(stdout);
 		count++;
 		if(count == 3){
 			printf("Closing\n");	
+			fflush(stdout);
 			finished = true;	
 		}
 	}while(!finished);
