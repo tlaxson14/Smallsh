@@ -19,26 +19,43 @@
 
 int main()
 {
-	bool finished = false;
-	char input[MAX_CHARS];
-	int count = 0;
-	size_t lineBuffer = MAX_CHARS;
-	size_t chars = 0;
+	bool exitShell = false;
+	size_t bufferSize = MAX_CHARS;
+	size_t chars;
+	char* input = NULL;
+	char* token;
 
 	do{
-		sleep(1);
 		printf(": ");
 		fflush(stdout);
-		chars = getline(&input, &lineBuffer, stdin);
-		printf("Number of chars: %zu\n", chars);
+		chars = getline(&input, &bufferSize, stdin);
+	/*	DEBUG	printf("Number of chars: %zu\n", chars);
+	*/	/* parse input */
+		token = strtok(input, "\n ");
+	/*	DEBUG	printf("Chars: %s\n", token);
 		fflush(stdout);
-		count++;
-		if(count == 3){
-			printf("Closing\n");	
-			fflush(stdout);
-			finished = true;	
+		*/
+		if(strcmp(input, "status") == 0){
+			/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
+			printf("Entered 'status' - Input = %s\n", token);
+			/* DEBUG - Print finished */
+			exitShell = false;
+			printf("Exit status = %d\n", exitShell);
 		}
-	}while(!finished);
+		else if(strcmp(input, "exit") == 0){
+			/* Kill all background processes */
+			printf("Killing all processes\n");
+			exitShell = true;	
+		}	
+		else if(strcmp(input, "cd") == 0){
+			/* Check arguments and then change directory based on provided arg */
+			printf("Entered 'cd' - Input = %s\n", token);
+		}
+		else{
+			/* Execute new process with command(s) */
+			printf("Fork new process with command\n");
+		}
+	}while(!exitShell);
 
 	return 0;
 }
