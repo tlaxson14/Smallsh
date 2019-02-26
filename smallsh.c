@@ -13,31 +13,19 @@
 #include <stdbool.h>
 #include <unistd.h>
 
-/* Global constants */
+/***********************
+*   GLOBAL CONSTANTS   *
+************************/
 #define MAX_CHARS 2048
 #define MAX_ARGS 512
 
-/* Function declarations */
-char* readInput(void)
-{
-	size_t chars;
-	size_t bufferSize = MAX_CHARS;
-	char* input = NULL;
-	
-	/* Read user input line from std input */
-	chars = getline(&input, &bufferSize, stdin);
-	/* DEBUG: Print number of chars	 */
- 	printf("Num chars: %d\n", chars);
-	/* DEBUG: Print line  */
-	printf("User input: %s\n", input);
-	/* Flush std output buffer */	
-	fflush(stdout);
-	return input;
-}
+/************************
+* FUNCTION DECLARATIONS *
+*************************/
+char* readInput(void);
 
 
-
-int main()
+int main(void)
 {
 	bool exitShell = false;
 	char* token;
@@ -78,4 +66,45 @@ int main()
 	}while(!exitShell);
 
 	return 0;
+}
+
+/***********************
+* FUNCTION DEFINITIONS *
+************************/
+
+/*******************************************************
+		READ USER INPUT FUNCTION
+********************************************************
+* Name: readInput
+* Description: 
+  	Initializes charater input pointer
+  	and reads user input from stdin, debugs,
+  	and prints string input to console before 
+  	returning the string.
+* Input:
+  	 N/A
+* Ouput: 
+  	Debugging info - number of chars and input
+* Returns:
+  	User string input read from getline function
+* Sources:
+  	Linux man page: http://man7.org/linux/man-pages/man3/getline.3.html
+ 	CforDummies: https://c-for-dummies.com/blog/?p=1112
+ 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+******************************************************/
+char* readInput(void)
+{
+	size_t chars;
+	size_t bufferSize = MAX_CHARS;
+	char* input = NULL;
+	
+	/* Read user input line from std input */
+	chars = getline(&input, &bufferSize, stdin);
+	/* DEBUG: Print number of chars	 */
+ 	printf("Num chars: %zu\n", chars);
+	/* DEBUG: Print line  */
+	printf("User input: %s\n", input);
+	/* Flush std output buffer */	
+	fflush(stdout);
+	return input;
 }
