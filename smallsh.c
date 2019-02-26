@@ -17,39 +17,59 @@
 #define MAX_CHARS 2048
 #define MAX_ARGS 512
 
+/* Function declarations */
+char* readInput(void)
+{
+	size_t chars;
+	size_t bufferSize = MAX_CHARS;
+	char* input = NULL;
+	
+	/* Read user input line from std input */
+	chars = getline(&input, &bufferSize, stdin);
+	/* DEBUG: Print number of chars	 */
+ 	printf("Num chars: %d\n", chars);
+	/* DEBUG: Print line  */
+	printf("User input: %s\n", input);
+	/* Flush std output buffer */	
+	fflush(stdout);
+	return input;
+}
+
+
+
 int main()
 {
 	bool exitShell = false;
-	size_t bufferSize = MAX_CHARS;
-	size_t chars;
-	char* input = NULL;
 	char* token;
+	char* inputLine;
+
 
 	do{
 		printf(": ");
 		fflush(stdout);
-		chars = getline(&input, &bufferSize, stdin);
-	/*	DEBUG	printf("Number of chars: %zu\n", chars);
-	*/	/* parse input */
-		token = strtok(input, "\n ");
-	/*	DEBUG	printf("Chars: %s\n", token);
-		fflush(stdout);
-		*/
-		if(strcmp(input, "status") == 0){
+
+		/* read user input */
+		inputLine = readInput();
+
+		/* Parse user input into list of commands */
+/*
+		token = strtok(inputLine, "\n ");
+*/
+		if(strcmp(inputLine, "status") == 0){
 			/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
-			printf("Entered 'status' - Input = %s\n", token);
+			printf("Entered 'status' - Input = %s\n", inputLine);
 			/* DEBUG - Print finished */
 			exitShell = false;
 			printf("Exit status = %d\n", exitShell);
 		}
-		else if(strcmp(input, "exit") == 0){
+		else if(strcmp(inputLine, "exit") == 0){
 			/* Kill all background processes */
 			printf("Killing all processes\n");
 			exitShell = true;	
 		}	
-		else if(strcmp(input, "cd") == 0){
+		else if(strcmp(inputLine, "cd") == 0){
 			/* Check arguments and then change directory based on provided arg */
-			printf("Entered 'cd' - Input = %s\n", token);
+			printf("Entered 'cd' - Input = %s\n", inputLine);
 		}
 		else{
 			/* Execute new process with command(s) */
