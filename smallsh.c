@@ -23,14 +23,15 @@
 * FUNCTION DECLARATIONS *
 *************************/
 char* readUserInput(void);
-char* parseUserInput(char*);
+char** parseUserInput(char*);
 
 
 int main(void)
 {
 	bool exitShell = false;
-	char* argsList;
+	char** argsList;
 	char* inputLine;
+	int count = 0;
 
 	/* Run shell loop logic */
 	do{
@@ -44,8 +45,11 @@ int main(void)
 		argsList = parseUserInput(inputLine);
 		
 		/* Debug: Print returned args list */
-		printf("ArgsList = %s\n", argsList);
-
+	/*	while(argsList != NULL) {
+			printf("ArgsList = %s\n", argsList[count]);
+			count++;
+		}
+	*/	
 		/* Check parsed commands for built in functions */
 		if(strcmp(inputLine, "status") == 0){
 			/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
@@ -124,22 +128,45 @@ char* readUserInput(void)
 * Ouput: 
   	Debugging info - number of chars and input
 * Returns:
-  	Parsed list of command line args input by the user 
+  	Pointer to array of character pointers containing
+	parsed list of command line args input by the user 
 * Sources:
 	CforDummies: https://c-for-dummies.com/blog/?p=1758
 	Man pages: http://man7.org/linux/man-pages/man3/strtok.3.html
 	G4Gs: https://www.geeksforgeeks.org/how-to-split-a-string-in-cc-python-and-java/
 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
 ******************************************************/
-char* parseUserInput(char* inputLine)
+char** parseUserInput(char* inputLine)
 {
-	char* token;
-	size_t argsMax = MAX_ARGS;		/* Max number of allowed args */
-	
-	/* Tokenize the string of characters from user input */
-	/* Argument delimiters = space, newline, tab (in order) */
-	token = strtok(inputLine, " \n\t");
-	printf("User input from parse function = %s\n", inputLine);
-	return token;
+	char* arg;
+	char** argsList = (char**)malloc(MAX_ARGS * sizeof(char*));
+	int indx = 0;
 
+	/* DEBUG - check memory allocation successful */
+	if(!argsList) {
+		fprintf(stderr, "Memory allocation error.\n");
+		exit(1);
+	}
+	/*size_t argsMax = MAX_ARGS;*/		/* Max number of allowed args */
+	/* Tokenize the string of characters from user input for first argument */
+	/* Argument delimiters = space, newline, tab (in order) */
+	arg = strtok(inputLine, " \n\t");
+	/* Process each token until null terminator found */
+	while(arg != NULL){
+		/* Store argument in argument array at i-th index */
+		argsList[indx] = arg;
+		/* Increment index in args array */
+		indx++;
+		/* Update string argument tokenizer for next argument */
+		arg = strtok(NULL, " \n\t");
+	}
+	/* Assign last index to NULL */
+	argsList[indx] = NULL;
+	/* DEBUG: Print argument */
+	indx = 0;
+	while(argsList[indx] != NULL){
+		printf("Argument %d: %s\n", indx+1, argsList[indx]);
+		indx++;
+	}
+	return argsList;
 }
