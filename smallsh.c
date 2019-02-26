@@ -28,10 +28,10 @@ char** parseUserInput(char*);
 
 int main(void)
 {
-	bool exitShell = false;
-	char** argsList;
-	char* inputLine;
-	int count = 0;
+	bool exitShell = false;		/* Shell exit status flag var */
+	char* inputLine;		/* Stores user input from shell */
+	char** argsList;		/* Stores tokenized arguments from user input */
+	int count = 0;			/* DEBUG counter var */ 
 
 	/* Run shell loop logic */
 	do{
@@ -42,14 +42,14 @@ int main(void)
 		inputLine = readUserInput();
 
 		/* Parse user input into list of arguments */
-		argsList = parseUserInput(inputLine);
-		
-		/* Debug: Print returned args list */
-	/*	while(argsList != NULL) {
-			printf("ArgsList = %s\n", argsList[count]);
-			count++;
+		argsList = parseUserInput(inputLine);	
+
+		/* DEBUG: Print returned char strings from args list */	
+		/* for(count = 0; count < INSERT NO. OF ARGS /); count++){
+			printf("Size of argsList = %d\n", sizeof(argsList));
+			printf("Argument %d: %s\n", count+1, argsList[count]);
 		}
-	*/	
+		*/
 		/* Check parsed commands for built in functions */
 		if(strcmp(inputLine, "status") == 0){
 			/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
@@ -73,6 +73,9 @@ int main(void)
 		}
 	}while(!exitShell);
 
+	/* Deallocate heap memory used for user input and arguments array */
+	free(inputLine);
+	free(argsList);
 	return 0;
 }
 
@@ -102,19 +105,21 @@ int main(void)
 ******************************************************/
 char* readUserInput(void)
 {
-	char* input = NULL;
+	/* Allocate memory up to max characters allowed */
+	char* inputBuffer = malloc(MAX_CHARS * sizeof(char));
 	size_t chars;
 	size_t bufferSize = MAX_CHARS;
 	
 	/* Read user input line from std input */
-	chars = getline(&input, &bufferSize, stdin);
+	chars = getline(&inputBuffer, &bufferSize, stdin);
 	/* DEBUG: Print number of chars	 */
  	printf("Num chars: %zu\n", chars);
 	/* DEBUG: Print line  */
-	printf("User input: %s\n", input);
+	printf("User input: %s\n", inputBuffer);
 	/* Flush std output buffer */	
 	fflush(stdout);
-	return input;
+	
+	return inputBuffer;
 }
 
 /******************************************************
@@ -139,11 +144,11 @@ char* readUserInput(void)
 char** parseUserInput(char* inputLine)
 {
 	char* arg;
-	char** argsList = (char**)malloc(MAX_ARGS * sizeof(char*));
+	char** argsArr = (char**)malloc(MAX_ARGS * sizeof(char*));
 	int indx = 0;
 
 	/* DEBUG - check memory allocation successful */
-	if(!argsList) {
+	if(!argsArr) {
 		fprintf(stderr, "Memory allocation error.\n");
 		exit(1);
 	}
@@ -154,19 +159,21 @@ char** parseUserInput(char* inputLine)
 	/* Process each token until null terminator found */
 	while(arg != NULL){
 		/* Store argument in argument array at i-th index */
-		argsList[indx] = arg;
+		argsArr[indx] = arg;
 		/* Increment index in args array */
 		indx++;
 		/* Update string argument tokenizer for next argument */
 		arg = strtok(NULL, " \n\t");
 	}
 	/* Assign last index to NULL */
-	argsList[indx] = NULL;
-	/* DEBUG: Print argument */
+	argsArr[indx] = NULL;
+
+	/* DEBUG: Print all indexed arguments */
 	indx = 0;
-	while(argsList[indx] != NULL){
-		printf("Argument %d: %s\n", indx+1, argsList[indx]);
+	while(argsArr[indx] != NULL){
+		printf("Argument %d: %s\n", indx+1, argsArr[indx]);
 		indx++;
 	}
-	return argsList;
+
+	return argsArr;
 }
