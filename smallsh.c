@@ -24,11 +24,11 @@
 *************************/
 char* readUserInput(void);
 char** parseUserInput(char*);
-
+bool executeUserInput(char**);
 
 int main(void)
 {
-	bool exitShell = false;		/* Shell exit status flag var */
+	bool shellStatus = false;	/* Shell exit status flag var */
 	char* inputLine;		/* Stores user input from shell */
 	char** argsList;		/* Stores tokenized arguments from user input */
 	int count = 0;			/* DEBUG counter var */ 
@@ -50,28 +50,11 @@ int main(void)
 			printf("Argument %d: %s\n", count+1, argsList[count]);
 		}
 		*/
-		/* Check parsed commands for built in functions */
-		if(strcmp(inputLine, "status") == 0){
-			/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
-			printf("Entered 'status' - Input = %s\n", inputLine);
-			/* DEBUG - Print finished */
-			exitShell = false;
-			printf("Exit status = %d\n", exitShell);
-		}
-		else if(strcmp(inputLine, "exit") == 0){
-			/* Kill all background processes */
-			printf("Killing all processes\n");
-			exitShell = true;	
-		}	
-		else if(strcmp(inputLine, "cd") == 0){
-			/* Check arguments and then change directory based on provided arg */
-			printf("Entered 'cd' - Input = %s\n", inputLine);
-		}
-		else{
-			/* Execute new process with command(s) */
-			printf("Fork new process with command\n");
-		}
-	}while(!exitShell);
+		/* Execute shell commands */
+		shellStatus = executeUserInput(argsList);
+
+
+	}while(!shellStatus);
 
 	/* Deallocate heap memory used for user input and arguments array */
 	free(inputLine);
@@ -127,9 +110,14 @@ char* readUserInput(void)
 *******************************************************
 * Name: parseUserInput
 * Description: 
+	Parses the user input using a tokenizer and 
+	inserts the arguments into an array of pointers 
+	to string characters before returning this 
+	array of character pointers.
 * Input:
-  	Pointer to character/string input from returned 
-	readUserInput function 
+  	(1) - Character pointer
+		Pointer to character/string input from 
+		returned readUserInput function 
 * Ouput: 
   	Debugging info - number of chars and input
 * Returns:
@@ -149,7 +137,7 @@ char** parseUserInput(char* inputLine)
 
 	/* DEBUG - check memory allocation successful */
 	if(!argsArr) {
-		fprintf(stderr, "Memory allocation error.\n");
+		printf("Memory allocation error.\n");
 		exit(1);
 	}
 	/*size_t argsMax = MAX_ARGS;*/		/* Max number of allowed args */
@@ -176,4 +164,53 @@ char** parseUserInput(char* inputLine)
 	}
 
 	return argsArr;
+}
+
+/*******************************************************
+    EXECUTE COMMANDS PROVIDED BY USER INPUT FUNCTION  
+********************************************************
+* Name: executeUserInput
+* Description: 
+	Executes the shell commands (if possible) 
+	provided by the user and returns the boolean 
+	flag status of the shell.
+* Input:
+	(1) - Pointer to array of char pointers
+* Ouput: 
+  	Debugging info - number of chars and input
+* Returns:
+	Boolean flag variable status (if true, terminates)
+* Sources:
+	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+******************************************************/
+bool executeUserInput(char** argsArr)
+{
+	bool exitShell = false;
+	printf("Inside executeUserInput function\n");
+
+	/* Check parsed commands for built in functions */
+	if(strcmp(argsArr[0], "status") == 0){
+	
+	/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
+		printf("Entered 'status' - Input = %s\n", *argsArr);
+		/* DEBUG - Print finished */
+			exitShell = false;
+			printf("Exit status = %d\n", exitShell);
+	}
+	else if(strcmp(argsArr[0], "exit") == 0){
+		/* Kill all background processes */
+		printf("Killing all processes\n");
+		exitShell = true;	
+	}	
+	else if(strcmp(argsArr[0], "cd") == 0){
+		/* Check arguments and then change directory based on provided arg */
+		printf("Entered 'cd' - Input = %s\n", *argsArr);
+		exitShell = false;
+	}
+	else{
+		/* Execute new process with command(s) */
+		printf("Fork new process with command\n");
+		exitShell = false;
+	}
+	return exitShell;
 }
