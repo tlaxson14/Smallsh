@@ -23,7 +23,7 @@
 * FUNCTION DECLARATIONS *
 *************************/
 char* readUserInput(void);
-void parseUserInput(void);
+char* parseUserInput(char*);
 
 
 int main(void)
@@ -32,7 +32,7 @@ int main(void)
 	char* argsList;
 	char* inputLine;
 
-
+	/* Run shell loop logic */
 	do{
 		printf(": ");
 		fflush(stdout);
@@ -41,10 +41,12 @@ int main(void)
 		inputLine = readUserInput();
 
 		/* Parse user input into list of arguments */
-		parseUserInput();
-/*
-		token = strtok(inputLine, "\n ");
-*/
+		argsList = parseUserInput(inputLine);
+		
+		/* Debug: Print returned args list */
+		printf("ArgsList = %s\n", argsList);
+
+		/* Check parsed commands for built in functions */
 		if(strcmp(inputLine, "status") == 0){
 			/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
 			printf("Entered 'status' - Input = %s\n", inputLine);
@@ -96,9 +98,9 @@ int main(void)
 ******************************************************/
 char* readUserInput(void)
 {
+	char* input = NULL;
 	size_t chars;
 	size_t bufferSize = MAX_CHARS;
-	char* input = NULL;
 	
 	/* Read user input line from std input */
 	chars = getline(&input, &bufferSize, stdin);
@@ -117,8 +119,8 @@ char* readUserInput(void)
 * Name: parseUserInput
 * Description: 
 * Input:
-  	 Pointer to character/string input from returned 
-	 readUserInput function 
+  	Pointer to character/string input from returned 
+	readUserInput function 
 * Ouput: 
   	Debugging info - number of chars and input
 * Returns:
@@ -129,7 +131,11 @@ char* readUserInput(void)
 	G4Gs: https://www.geeksforgeeks.org/how-to-split-a-string-in-cc-python-and-java/
 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
 ******************************************************/
-void parseUserInput(void)
+char* parseUserInput(char* inputLine)
 {
-	printf("In parse user input function\n");
+	char* token;
+	size_t argsMax = MAX_ARGS;		/* Max number of allowed args */
+	token = strtok(inputLine, "\n ");
+	printf("User input from parse function = %s\n", inputLine);
+	return token;
 }
