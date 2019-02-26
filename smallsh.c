@@ -138,7 +138,7 @@ char* parseUserInput(char* inputLine)
 	
 	/* Tokenize the string of characters from user input */
 	/* Argument delimiters = space, newline, tab (in order) */
-	token = strtok(inputLine, " \n	");
+	token = strtok(inputLine, " \n\t");
 	printf("User input from parse function = %s\n", inputLine);
 	return token;
 
