@@ -135,7 +135,11 @@ char* parseUserInput(char* inputLine)
 {
 	char* token;
 	size_t argsMax = MAX_ARGS;		/* Max number of allowed args */
-	token = strtok(inputLine, "\n ");
+	
+	/* Tokenize the string of characters from user input */
+	/* Argument delimiters = space, newline, tab (in order) */
+	token = strtok(inputLine, " \n	");
 	printf("User input from parse function = %s\n", inputLine);
 	return token;
+
 }
