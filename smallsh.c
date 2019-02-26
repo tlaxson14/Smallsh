@@ -22,13 +22,14 @@
 /************************
 * FUNCTION DECLARATIONS *
 *************************/
-char* readInput(void);
+char* readUserInput(void);
+void parseUserInput(void);
 
 
 int main(void)
 {
 	bool exitShell = false;
-	char* token;
+	char* argsList;
 	char* inputLine;
 
 
@@ -36,10 +37,11 @@ int main(void)
 		printf(": ");
 		fflush(stdout);
 
-		/* read user input */
-		inputLine = readInput();
+		/* Read user input */
+		inputLine = readUserInput();
 
-		/* Parse user input into list of commands */
+		/* Parse user input into list of arguments */
+		parseUserInput();
 /*
 		token = strtok(inputLine, "\n ");
 */
@@ -75,7 +77,7 @@ int main(void)
 /*******************************************************
 		READ USER INPUT FUNCTION
 ********************************************************
-* Name: readInput
+* Name: readUserInput
 * Description: 
   	Initializes charater input pointer
   	and reads user input from stdin, debugs,
@@ -92,7 +94,7 @@ int main(void)
  	CforDummies: https://c-for-dummies.com/blog/?p=1112
  	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
 ******************************************************/
-char* readInput(void)
+char* readUserInput(void)
 {
 	size_t chars;
 	size_t bufferSize = MAX_CHARS;
@@ -107,4 +109,27 @@ char* readInput(void)
 	/* Flush std output buffer */	
 	fflush(stdout);
 	return input;
+}
+
+/******************************************************
+     PARSE USER INPUT INTO SHELL COMMANDS FUNCTION     
+*******************************************************
+* Name: parseUserInput
+* Description: 
+* Input:
+  	 Pointer to character/string input from returned 
+	 readUserInput function 
+* Ouput: 
+  	Debugging info - number of chars and input
+* Returns:
+  	Parsed list of command line args input by the user 
+* Sources:
+	CforDummies: https://c-for-dummies.com/blog/?p=1758
+	Man pages: http://man7.org/linux/man-pages/man3/strtok.3.html
+	G4Gs: https://www.geeksforgeeks.org/how-to-split-a-string-in-cc-python-and-java/
+	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+******************************************************/
+void parseUserInput(void)
+{
+	printf("In parse user input function\n");
 }
