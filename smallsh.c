@@ -57,7 +57,7 @@ int main(void)
 	}while(!shellStatus);
 
 	/* Deallocate heap memory used for user input and arguments array */
-	free(inputLine);
+	/*free(inputLine);*/
 	free(argsList);
 	return 0;
 }
@@ -88,8 +88,7 @@ int main(void)
 ******************************************************/
 char* readUserInput(void)
 {
-	/* Allocate memory up to max characters allowed */
-	char* inputBuffer = malloc(MAX_CHARS * sizeof(char));
+	char* inputBuffer;
 	size_t chars;
 	size_t bufferSize = MAX_CHARS;
 	
@@ -185,32 +184,41 @@ char** parseUserInput(char* inputLine)
 ******************************************************/
 bool executeUserInput(char** argsArr)
 {
-	bool exitShell = false;
+	bool exitShell;
 	printf("Inside executeUserInput function\n");
-
+	
+	if(argsArr[0] == NULL){
+		exitShell = false;
+	/*	return exitShell;
+	*/
+	}
 	/* Check parsed commands for built in functions */
-	if(strcmp(argsArr[0], "status") == 0){
+	else if(strcmp(argsArr[0], "status") == 0){
 	
 	/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
 		printf("Entered 'status' - Input = %s\n", *argsArr);
 		/* DEBUG - Print finished */
 			exitShell = false;
 			printf("Exit status = %d\n", exitShell);
+		/*	return exitShell; */
 	}
 	else if(strcmp(argsArr[0], "exit") == 0){
 		/* Kill all background processes */
 		printf("Killing all processes\n");
 		exitShell = true;	
+	/*	return exitShell;*/
 	}	
 	else if(strcmp(argsArr[0], "cd") == 0){
 		/* Check arguments and then change directory based on provided arg */
 		printf("Entered 'cd' - Input = %s\n", *argsArr);
 		exitShell = false;
+		/*return exitShell;*/
 	}
 	else{
 		/* Execute new process with command(s) */
 		printf("Fork new process with command\n");
 		exitShell = false;
+		/*return exitShell;*/
 	}
 	return exitShell;
 }
