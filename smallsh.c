@@ -57,7 +57,7 @@ int main(void)
 	}while(!shellStatus);
 
 	/* Deallocate heap memory used for user input and arguments array */
-	/*free(inputLine);*/
+	free(inputLine);
 	free(argsList);
 	return 0;
 }
@@ -88,7 +88,7 @@ int main(void)
 ******************************************************/
 char* readUserInput(void)
 {
-	char* inputBuffer;
+	char* inputBuffer = malloc(MAX_CHARS * sizeof(char));
 	size_t chars;
 	size_t bufferSize = MAX_CHARS;
 	
@@ -189,11 +189,11 @@ bool executeUserInput(char** argsArr)
 	
 	if(argsArr[0] == NULL){
 		exitShell = false;
-	/*	return exitShell;
-	*/
+		return exitShell;
 	}
 	/* Check parsed commands for built in functions */
-	else if(strcmp(argsArr[0], "status") == 0){
+	
+	if(strcmp(argsArr[0], "status") == 0){
 	
 	/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
 		printf("Entered 'status' - Input = %s\n", *argsArr);
