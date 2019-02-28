@@ -6,7 +6,11 @@
  * a shell prompt with responsive command line
  * execution including signal handline.
  **********************************************/
-#define _GNU_SOURCE	/* For getline */
+
+/* Source: Removes warning with getline function call */
+/* https://stackoverflow.com/questions/8480929/scratchbox2-returns-implicit-declaration-of-function-getline-among-other-weir */
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +36,6 @@ int main(void)
 	char* inputLine;		/* Stores user input from shell */
 	char** argsList;		/* Stores tokenized arguments from user input */
 					/* int count = 0  DEBUG counter var */ 
-
 	/* Run shell loop logic */
 	do{
 		printf(": ");
