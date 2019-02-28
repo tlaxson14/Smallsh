@@ -6,7 +6,7 @@
  * a shell prompt with responsive command line
  * execution including signal handline.
  **********************************************/
-
+#define _GNU_SOURCE	/* For getline */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +31,7 @@ int main(void)
 	bool shellStatus = false;	/* Shell exit status flag var */
 	char* inputLine;		/* Stores user input from shell */
 	char** argsList;		/* Stores tokenized arguments from user input */
-	int count = 0;			/* DEBUG counter var */ 
+					/* int count = 0  DEBUG counter var */ 
 
 	/* Run shell loop logic */
 	do{
@@ -85,22 +85,30 @@ int main(void)
   	Linux man page: http://man7.org/linux/man-pages/man3/getline.3.html
  	CforDummies: https://c-for-dummies.com/blog/?p=1112
  	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+	CS344 Lecture Notes: 3.3 Advanced User Input with getline() about stuck errors
 ******************************************************/
 char* readUserInput(void)
 {
-	char* inputBuffer = malloc(MAX_CHARS * sizeof(char));
-	size_t chars;
-	size_t bufferSize = MAX_CHARS;
+	char* inputBuffer;/* = malloc(MAX_CHARS * sizeof(char));*/
+	size_t charsEntered;						
+	size_t bufferSize = 0;
 	
 	/* Read user input line from std input */
-	chars = getline(&inputBuffer, &bufferSize, stdin);
+	charsEntered = getline(&inputBuffer, &bufferSize, stdin);
 	/* DEBUG: Print number of chars	 */
- 	printf("Num chars: %zu\n", chars);
-	/* DEBUG: Print line  */
-	printf("User input: %s\n", inputBuffer);
+ 	if(charsEntered == -1){
+		/* printf("Input error: \n"); */
+		/* Remove error status from stdin before resuming upon interruption */
+		clearerr(stdin);
+	}
 	/* Flush std output buffer */	
 	fflush(stdout);
+	/* DEBUG: Display allocated bytes in memory, character count, and user input */
+	printf("Allocated bytes: %zu\nCharacter count: %zu\nUser input: %s\n", bufferSize, charsEntered, inputBuffer);
 	
+	/* Flush std output buffer */	
+	fflush(stdout);
+
 	return inputBuffer;
 }
 
@@ -186,13 +194,13 @@ bool executeUserInput(char** argsArr)
 {
 	bool exitShell;
 	printf("Inside executeUserInput function\n");
-	
+
+	/* If no user input, return false to keep iterating shell loop */	
 	if(argsArr[0] == NULL){
 		exitShell = false;
 		return exitShell;
 	}
 	/* Check parsed commands for built in functions */
-	
 	if(strcmp(argsArr[0], "status") == 0){
 	
 	/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
