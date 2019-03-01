@@ -204,8 +204,6 @@ bool executeUserInput(char** argsArr)
 	bool exitShell;
 	int i = 0;	
 
-	/*printf("Inside executeUserInput function\n");*/
-
 	/* If no user input, return false to keep iterating shell loop */	
 	if(argsArr[0] == NULL){
 		exitShell = false;
@@ -224,7 +222,6 @@ bool executeUserInput(char** argsArr)
 		exitShell = false;
 	}
 	else if(strcmp(argsArr[0], "status") == 0){
-	
 	/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
 		/*printf("Entered 'status' - Input = %s\n", *argsArr);*/
 		/* DEBUG - Print finished */
