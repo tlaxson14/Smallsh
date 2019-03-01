@@ -202,7 +202,8 @@ char** parseUserInput(char* inputLine)
 bool executeUserInput(char** argsArr)
 {
 	bool exitShell;
-	
+	int i = 0;	
+
 	/*printf("Inside executeUserInput function\n");*/
 
 	/* If no user input, return false to keep iterating shell loop */	
@@ -214,7 +215,12 @@ bool executeUserInput(char** argsArr)
 	/* Check if first byte is the comment indicator '#' */
 	if(strncmp(argsArr[0], "#", 1) == 0){
 		/* DEBUG: Print comment */
-		printf("Printed comment\n");
+		printf("DEBUG: Printed comment\n");
+		while(argsArr[i] != NULL){
+			printf("%s ", argsArr[i]);
+			i++;
+		}
+		printf("\n");	
 		exitShell = false;
 	}
 	else if(strcmp(argsArr[0], "status") == 0){
