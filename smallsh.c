@@ -16,6 +16,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <errno.h>
 
 /***********************
 *   GLOBAL CONSTANTS   *
@@ -30,9 +31,9 @@ char* readUserInput(void);
 char** parseUserInput(char*);
 bool executeUserInput(char**);
 
-int main(void)
+int main()
 {
-	bool shellStatus = false;	/* Shell exit status flag var */
+	bool shellStatus;		/* Shell exit status flag var */
 	char* inputLine;		/* Stores user input from shell */
 	char** argsList;		/* Stores tokenized arguments from user input */
 					/* int count = 0  DEBUG counter var */ 
@@ -92,7 +93,7 @@ int main(void)
 ******************************************************/
 char* readUserInput(void)
 {
-	char* inputBuffer;/* = malloc(MAX_CHARS * sizeof(char));*/
+	char* inputBuffer = NULL;/* = malloc(MAX_CHARS * sizeof(char));*/
 	size_t charsEntered;						
 	size_t bufferSize = 0;
 	
@@ -107,11 +108,8 @@ char* readUserInput(void)
 	/* Flush std output buffer */	
 	fflush(stdout);
 	/* DEBUG: Display allocated bytes in memory, character count, and user input */
-	printf("Allocated bytes: %zu\nCharacter count: %zu\nUser input: %s\n", bufferSize, charsEntered, inputBuffer);
+	/*printf("Allocated bytes: %zu\nCharacter count: %zu\nUser input: %s\n", bufferSize, charsEntered, inputBuffer); */
 	
-	/* Flush std output buffer */	
-	fflush(stdout);
-
 	return inputBuffer;
 }
 
@@ -141,7 +139,7 @@ char* readUserInput(void)
 ******************************************************/
 char** parseUserInput(char* inputLine)
 {
-	char* arg;
+	char* arg = NULL;
 	char** argsArr = (char**)malloc(MAX_ARGS * sizeof(char*));
 	int indx = 0;
 
@@ -154,6 +152,13 @@ char** parseUserInput(char* inputLine)
 	/* Tokenize the string of characters from user input for first argument */
 	/* Argument delimiters = space, newline, tab (in order) */
 	arg = strtok(inputLine, " \n\t");
+	
+	/* Error check for arg */
+	if(arg == NULL){
+		argsArr[0] = NULL;
+		return argsArr;
+	}
+
 	/* Process each token until null terminator found */
 	while(arg != NULL){
 		/* Store argument in argument array at i-th index */
@@ -167,12 +172,12 @@ char** parseUserInput(char* inputLine)
 	argsArr[indx] = NULL;
 
 	/* DEBUG: Print all indexed arguments */
-	indx = 0;
+	/*indx = 0;
 	while(argsArr[indx] != NULL){
 		printf("Argument %d: %s\n", indx+1, argsArr[indx]);
 		indx++;
 	}
-
+	*/
 	return argsArr;
 }
 
@@ -192,11 +197,14 @@ char** parseUserInput(char* inputLine)
 	Boolean flag variable status (if true, terminates)
 * Sources:
 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+	strncmp: https://linux.die.net/man/3/strncmp
 ******************************************************/
 bool executeUserInput(char** argsArr)
 {
 	bool exitShell;
-	printf("Inside executeUserInput function\n");
+	int i = 0;	
+
+	/*printf("Inside executeUserInput function\n");*/
 
 	/* If no user input, return false to keep iterating shell loop */	
 	if(argsArr[0] == NULL){
@@ -204,30 +212,67 @@ bool executeUserInput(char** argsArr)
 		return exitShell;
 	}
 	/* Check parsed commands for built in functions */
-	if(strcmp(argsArr[0], "status") == 0){
+	/* Check if first byte is the comment indicator '#' */
+	if(strncmp(argsArr[0], "#", 1) == 0){
+		/* DEBUG: Print comment */
+		printf("DEBUG: Printed comment\n");
+		while(argsArr[i] != NULL){
+			printf("%s ", argsArr[i]);
+			i++;
+		}
+		printf("\n");	
+		exitShell = false;
+	}
+	else if(strcmp(argsArr[0], "status") == 0){
 	
 	/* Print the exit status 0 if no foreground command or terminating signal of last foreground process */
-		printf("Entered 'status' - Input = %s\n", *argsArr);
+		/*printf("Entered 'status' - Input = %s\n", *argsArr);*/
 		/* DEBUG - Print finished */
-			exitShell = false;
-			printf("Exit status = %d\n", exitShell);
+		exitShell = false;
+		printf("Exit status = %d\n", exitShell);	
 		/*	return exitShell; */
 	}
 	else if(strcmp(argsArr[0], "exit") == 0){
 		/* Kill all background processes */
-		printf("Killing all processes\n");
-		exitShell = true;	
+		/*printf("Killing all processes\n");*/
+		exitShell = true;
 	/*	return exitShell;*/
 	}	
 	else if(strcmp(argsArr[0], "cd") == 0){
 		/* Check arguments and then change directory based on provided arg */
-		printf("Entered 'cd' - Input = %s\n", *argsArr);
-		exitShell = false;
+		/* printf("Entered 'cd' - Input = %s\n", *argsArr);*/
+		/* If user only enters 'cd' without any additional arguments then navigate to home directory */
+		if(argsArr[1] == NULL){
+			char* path = getenv("HOME");
+			chdir(path);
+			/* Error check */
+			if(chdir(path) != 0){
+				/* Print error number and description */
+				printf("ERROR %d: %s\n", errno, strerror(errno));
+			}
+			/* DEBUG: Print path */
+			printf("Path = %s\n", path);
+			exitShell = false;
+		}
+		/* User enters additional argument to change into desired directory */
+		else if(argsArr[1] != NULL){
+			char* newDir = argsArr[1];
+			/* DEBUG: Print user input for new directory to navigate to */
+			printf("Entered new dir = %s\n", newDir);
+			/* Change into directory */
+			chdir(newDir);
+			/* Error check */
+			if(chdir(newDir) != 0){
+				/* Print error number and description */
+				printf("ERROR %d: %s\n", errno, strerror(errno));
+			}
+			exitShell = false;
+		}
 		/*return exitShell;*/
 	}
 	else{
 		/* Execute new process with command(s) */
-		printf("Fork new process with command\n");
+		/*printf("Fork new process with command\n");*/
 		exitShell = false;
 		/*return exitShell;*/
 	}
