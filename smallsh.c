@@ -229,12 +229,6 @@ bool executeUserInput(char** argsArr)
 		printf("Exit status = %d\n", exitShell);	
 		/*	return exitShell; */
 	}
-	else if(strcmp(argsArr[0], "exit") == 0){
-		/* Kill all background processes */
-		/*printf("Killing all processes\n");*/
-		exitShell = true;
-	/*	return exitShell;*/
-	}	
 	else if(strcmp(argsArr[0], "cd") == 0){
 		/* Check arguments and then change directory based on provided arg */
 		/* printf("Entered 'cd' - Input = %s\n", *argsArr);*/
@@ -267,6 +261,12 @@ bool executeUserInput(char** argsArr)
 		}
 		/*return exitShell;*/
 	}
+	else if(strcmp(argsArr[0], "exit") == 0){
+		/* Kill all background processes */
+		/*printf("Killing all processes\n");*/
+		exitShell = true;
+	/*	return exitShell;*/
+	}	
 	else{
 		/* Execute new process with command(s) */
 		/*printf("Fork new process with command\n");*/
