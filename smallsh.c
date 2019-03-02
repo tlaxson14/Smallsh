@@ -344,13 +344,19 @@ bool executeUserInput(char** argsArr)
 			exit(1);
 		}
 		else if(spawnPid == 0){
-			printf("CHILD PROCESS: PID = %d, exiting!\n", spawnPid);
+			printf("CHILD(%d): Child sleeping for 1 second\n", getpid());
+			sleep(1);
+			printf("CHILD(%d): Converting into command 'ls -a'\n", getpid());
+			execlp("ls", "ls", "-a", NULL);
+			perror("CHILD: exec failure!\n");
 			/* Place command execution logic in child here */
-			exit(0);
+			exit(2);
 		}
-		printf("PARENT PROCESS: PID = %d, waiting...\n", spawnPid);
-		waitpid(spawnPid, &childExitMethod, 0);
-		printf("PARENT PROCESS: Child process terminated, exiting!\n");
+		printf("PARENT(%d): Sleeping for 2 seconds.\n", getpid());
+		sleep(2);
+		printf("PARENT(%d): Waiting for child(%d) to terminate.\n", getpid(), spawnPid);
+		pid_t actualPid = waitpid(spawnPid, &childExitMethod, 0);
+		printf("PARENT(%d): Child(%d) terminated, Exiting!\n", getpid(), actualPid);
 
 		if(WIFEXITED(childExitMethod)){
 			printf("The process exited normally!\n");
