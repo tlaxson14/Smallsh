@@ -24,6 +24,12 @@
 #define MAX_CHARS 2048
 #define MAX_ARGS 512
 
+int argsCount;		/* Stores number of command arguments from user input */
+bool redirectInput;	/* True if "<" input redirection entered, else false */
+bool redirectOutput;	/* True if ">" output redirection entered, else false */
+char* inputFileName;	/* Holds the file name of the input file when input redirection used */
+char* outputFileName;	/* Holds the file name of the output file when out redirection used */
+
 /************************
 * FUNCTION DECLARATIONS *
 *************************/
@@ -34,12 +40,20 @@ bool executeUserInput(char**);
 int main()
 {
 	bool shellStatus;		/* Shell exit status flag var */
-	char* inputLine;		/* Stores user input from shell */
-	char** argsList;		/* Stores tokenized arguments from user input */
 					/* int count = 0  DEBUG counter var */ 
 	/* Run shell loop logic */
 	do{
+
+		char* inputLine;	/* Stores user input from shell */
+		char** argsList;	/* Stores tokenized arguments from user input */
+		
+		/* Reset number of arguments */
+		argsCount = 0;		
+
+		/* Print prompt */
 		printf(": ");
+
+		/* Flush stdout */
 		fflush(stdout);
 
 		/* Read user input */
@@ -57,12 +71,12 @@ int main()
 		/* Execute shell commands */
 		shellStatus = executeUserInput(argsList);
 
+		/* Deallocate heap memory used for user input and arguments array */
+		free(inputLine);
+		free(argsList);
 
 	}while(!shellStatus);
 
-	/* Deallocate heap memory used for user input and arguments array */
-	free(inputLine);
-	free(argsList);
 	return 0;
 }
 
@@ -96,7 +110,7 @@ char* readUserInput(void)
 	char* inputBuffer = NULL;/* = malloc(MAX_CHARS * sizeof(char));*/
 	size_t charsEntered;						
 	size_t bufferSize = 0;
-	
+
 	/* Read user input line from std input */
 	charsEntered = getline(&inputBuffer, &bufferSize, stdin);
 	/* DEBUG: Print number of chars	 */
@@ -105,11 +119,15 @@ char* readUserInput(void)
 		/* Remove error status from stdin before resuming upon interruption */
 		clearerr(stdin);
 	}
+
 	/* Flush std output buffer */	
 	fflush(stdout);
 	/* DEBUG: Display allocated bytes in memory, character count, and user input */
-	/*printf("Allocated bytes: %zu\nCharacter count: %zu\nUser input: %s\n", bufferSize, charsEntered, inputBuffer); */
-	
+/*	printf("Allocated bytes: %zu\nCharacter count: %zu\nUser input: %s\n", bufferSize, charsEntered, inputBuffer); 
+*/	
+	/* Flush std output buffer */	
+/*	fflush(stdout);
+*/
 	return inputBuffer;
 }
 
@@ -121,7 +139,11 @@ char* readUserInput(void)
 	Parses the user input using a tokenizer and 
 	inserts the arguments into an array of pointers 
 	to string characters before returning this 
-	array of character pointers.
+	array of character pointers. Modifies the global
+	variables for number of arguments, redirection
+	operators "<", ">", and assigns the input and
+	output file names if redirection operators
+	invoked by the user.
 * Input:
   	(1) - Character pointer
 		Pointer to character/string input from 
@@ -136,12 +158,18 @@ char* readUserInput(void)
 	Man pages: http://man7.org/linux/man-pages/man3/strtok.3.html
 	G4Gs: https://www.geeksforgeeks.org/how-to-split-a-string-in-cc-python-and-java/
 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+	Redirection: https://stackoverflow.com/questions/11515399/implementing-shell-in-c-and-need-help-handling-input-output-redirection
 ******************************************************/
 char** parseUserInput(char* inputLine)
 {
 	char* arg = NULL;
 	char** argsArr = (char**)malloc(MAX_ARGS * sizeof(char*));
 	int indx = 0;
+	
+	/* Global singal handlers */
+	argsCount = 0;
+	redirectInput = false;
+	redirectOutput = false;
 
 	/* DEBUG - check memory allocation successful */
 	if(!argsArr) {
@@ -161,10 +189,39 @@ char** parseUserInput(char* inputLine)
 
 	/* Process each token until null terminator found */
 	while(arg != NULL){
-		/* Store argument in argument array at i-th index */
-		argsArr[indx] = arg;
-		/* Increment index in args array */
-		indx++;
+		/* Check if redirection operators entered */
+		if(strcmp(arg, "<") == 0){
+			redirectInput = true;
+			/* DEBUG: Print confirmation 
+  			printf("Entered input redirection operator\n");
+			*/
+		}
+		else if(strcmp(arg, ">") == 0){
+			redirectOutput = true;
+			/* DEBUG: Print confirmation 
+			printf("Entered output redirection operator\n");
+			*/
+		}
+		else{
+			/* If input redirection assign tokenized arg as input file */
+			if(redirectInput){
+				inputFileName = arg;
+			}
+			/* If output redirection assign tokenized arg as output file */
+			else if(redirectOutput){
+				outputFileName = arg;
+			}		
+			/* Store argument in argument array at i-th index */
+			else{
+				argsArr[indx] = arg;
+				
+				/* Increment index in args array */
+				indx++;
+				
+				/* Increment global args count */
+				argsCount++;
+			}
+		}
 		/* Update string argument tokenizer for next argument */
 		arg = strtok(NULL, " \n\t");
 	}
@@ -266,7 +323,14 @@ bool executeUserInput(char** argsArr)
 		/*printf("Killing all processes\n");*/
 		exitShell = true;
 	/*	return exitShell;*/
-	}	
+	}
+	/* Check for input/output redirection */
+	else if(redirectInput){
+		printf("- Redirected input -\nEntered %d arguments\n", argsCount);
+	}
+	else if(redirectOutput){
+		printf("- Redirected output -\nEntered %d arguments\n", argsCount);
+	}
 	else{
 		/* Execute new process with command(s) */
 		/*printf("Fork new process with command\n");*/
