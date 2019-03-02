@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -332,9 +333,40 @@ bool executeUserInput(char** argsArr)
 		printf("- Redirected output -\nEntered %d arguments\n", argsCount);
 	}
 	else{
+		/* Code source: Lecture 3.1 - Processes */
+		pid_t spawnPid = -5;
+		int childExitMethod = -5;
+
+		spawnPid = fork();
+		if(spawnPid == -1){
+			perror("ERROR!\n");
+			exit(1);
+		}
+		else if(spawnPid == 0){
+			printf("CHILD PROCESS: PID = %d, exiting!\n", spawnPid);
+			/* Place command execution logic in child here */
+			exit(0);
+		}
+		printf("PARENT PROCESS: PID = %d, waiting...\n", spawnPid);
+		waitpid(spawnPid, &childExitMethod, 0);
+		printf("PARENT PROCESS: Child process terminated, exiting!\n");
+
+		if(WIFEXITED(childExitMethod)){
+			printf("The process exited normally!\n");
+			int exitStatus = WEXITSTATUS(childExitMethod);
+			printf("Exit status: %d\n", exitStatus);
+		}
+		else if(WIFSIGNALED(childExitMethod)){
+			printf("The process exited normally!\n");
+			int termSignal = WTERMSIG(childExitMethod);
+			printf("Signal termination: %d\n", termSignal);
+		}
+
+		exit(0);	
+
 		/* Execute new process with command(s) */
 		/*printf("Fork new process with command\n");*/
-		exitShell = false;
+		/*exitShell = false;*/
 		/*return exitShell;*/
 	}
 	return exitShell;
