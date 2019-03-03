@@ -6,6 +6,9 @@ PROG1 = smallsh
 all: $(PROG1)
 	./$(PROG1)
 
+memory: $(PROG1)
+	valgrind --leak-check=full -v ./$(PROG1)
+
 $(PROG1): $(OBJECT1)
 	$(CC) -o $@ $^ $(CFLAGS)
 
