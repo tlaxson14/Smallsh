@@ -27,14 +27,12 @@
 #define MAX_CHARS 2048
 #define MAX_ARGS 512
 
-int argsCount;		/* Stores number of command arguments from user input */
-int smallShellPid;	/* Stores the process ID of the shell program */
-bool redirectInput;	/* True if "<" input redirection entered, else false */
-bool redirectOutput;	/* True if ">" output redirection entered, else false */
-char* inputFileName;	/* Holds the file name of the input file when input redirection used */
-char* outputFileName;	/* Holds the file name of the output file when out redirection used */
-
-
+int argsCount;			/* Stores number of command arguments from user input */
+int smallShellPid;		/* Stores the process ID of the shell program */
+bool redirectInput;		/* True if "<" input redirection entered, else false */
+bool redirectOutput;		/* True if ">" output redirection entered, else false */
+char* inputFileName;		/* Holds the file name of the input file when input redirection used */
+char* outputFileName;		/* Holds the file name of the output file when out redirection used */
 
 /************************
 * FUNCTION DECLARATIONS *
@@ -46,14 +44,16 @@ void executeShellProcess(char**);
 
 int main()
 {
-	bool shellStatus;		/* Shell exit status flag var */
-					/* int count = 0  DEBUG counter var */ 
-
+	bool shellStatus;	/* Shell exit status flag var */
+	/* int count = 0  DEBUG counter var */ 
+	
 	/* Assign process ID to shell */
 	smallShellPid = getpid();
+	
 	/* DEBUG: Print shell proc ID 
 	printf("Shell proc ID: %d\n", smallShellPid);
 	*/
+	
 	/* Run shell loop logic */
 	do{
 
@@ -138,12 +138,12 @@ char* readUserInput(void)
 
 	/* Flush std output buffer */	
 	fflush(stdout);
+	
 	/* DEBUG: Display allocated bytes in memory, character count, and user input */
-/*	printf("Allocated bytes: %zu\nCharacter count: %zu\nUser input: %s\n", bufferSize, charsEntered, inputBuffer); 
-*/	
+	/*	printf("Allocated bytes: %zu\nCharacter count: %zu\nUser input: %s\n", bufferSize, charsEntered, inputBuffer); 
+	*/	
 	/* Flush std output buffer */	
-/*	fflush(stdout);
-*/
+	/* fflush(stdout); */
 	return inputBuffer;
 }
 
@@ -159,7 +159,10 @@ char* readUserInput(void)
 	variables for number of arguments, redirection
 	operators "<", ">", and assigns the input and
 	output file names if redirection operators
-	invoked by the user.
+	invoked by the user. Also performs variable
+	expansion if the proc ID "$$" is encountered
+	during execution. Converts the integer into a
+	string to display proc ID.
 * Input:
   	(1) - Character pointer
 		Pointer to character/string input from 
@@ -206,7 +209,7 @@ char** parseUserInput(char* inputLine)
 	
 	/* Perform variable expansion if $$ located */
 	if(strstr(inputLine, "$$") != NULL){
-		printf("Double dolla holla!\n");
+		/* printf("Double dolla holla!\n"); */
 		printf("Shell pid = %d\n", smallShellPid);
 
 		/* Convert and store shell pid in string buffer */
@@ -234,14 +237,9 @@ char** parseUserInput(char* inputLine)
 	
 		/* Copy new argsBuffer into inputLine var */	
 		strcpy(inputLine, argsBuffer);
-
-/*		free(argsBuffer);
-*/
 		/* DEBUG: Print inputLine */
-	/*	printf("Input Line = %s\n", inputLine);
-	*/
+		/* printf("Input Line = %s\n", inputLine); */
 	}		
-
 
 	/*size_t argsMax = MAX_ARGS;*/		/* Max number of allowed args */
 	/* Tokenize the string of characters from user input for first argument */
@@ -302,6 +300,8 @@ char** parseUserInput(char* inputLine)
 		indx++;
 	}
 	*/
+
+	/* Deallocate memory for var expansion buffer */
 	free(argsBuffer);
 	return argsArr;
 }
@@ -340,12 +340,14 @@ bool executeUserInput(char** argsArr)
 	/* Check if first byte is the comment indicator '#' */
 	if(strncmp(argsArr[0], "#", 1) == 0){
 		/* DEBUG: Print comment */
-		printf("DEBUG: Printed comment\n");
+		/*printf("DEBUG: Printed comment\n");
 		while(argsArr[i] != NULL){
 			printf("%s ", argsArr[i]);
 			i++;
 		}
+		*/
 		printf("\n");	
+		
 		/* Flush stdout */
 		fflush(stdout);
 		exitShell = false;
@@ -355,10 +357,12 @@ bool executeUserInput(char** argsArr)
 		/*printf("Entered 'status' - Input = %s\n", *argsArr);*/
 		/* DEBUG - Print finished */
 		exitShell = false;
+
+		/* Print exit status */
 		printf("Exit status = %d\n", exitShell);	
+		
 		/* Flush stdout */
 		fflush(stdout);
-		/*	return exitShell; */
 	}
 	else if(strcmp(argsArr[0], "cd") == 0){
 		/* Check arguments and then change directory based on provided arg */
@@ -402,24 +406,15 @@ bool executeUserInput(char** argsArr)
 			
 			/* Flush stdout */
 			fflush(stdout);
+			
 			exitShell = false;
 		}
-		/*return exitShell;*/
 	}
 	else if(strcmp(argsArr[0], "exit") == 0){
 		/* Kill all background processes */
 		/*printf("Killing all processes\n");*/
 		exitShell = true;
-	/*	return exitShell;*/
 	}
-	/* Check for input/output redirection */
-/*	else if(redirectInput){
-		printf("- Redirected input -\nEntered %d arguments\n", argsCount);
-	}
-	else if(redirectOutput){
-		printf("- Redirected output -\nEntered %d arguments\n", argsCount);
-	}
-*/
 	else{
 		/* Code source: Lecture 3.1 - Processes */
 		pid_t spawnPid = -5;
@@ -440,7 +435,7 @@ bool executeUserInput(char** argsArr)
 			/*execlp("ls", "ls", "-a", NULL);
 			perror("CHILD: exec failure!\n");
 			*/
-			exit(2);
+			exit(0);
 		}
 		printf("PARENT(%d): Sleeping for 2 seconds.\n", getpid());
 		sleep(2);
@@ -459,11 +454,11 @@ bool executeUserInput(char** argsArr)
 			printf("Signal termination: %d\n", termSignal);
 		}
 
-		exit(0);	
+		/*exit(0);*/
 	
 		/* Execute new process with command(s) */
-		/*printf("Fork new process with command\n");
-		exitShell = false;*/
+		/*printf("Fork new process with command\n");*/
+		exitShell = false;
 		/*return exitShell;*/
 	}
 	return exitShell;
@@ -533,14 +528,14 @@ void executeShellProcess(char** argsArr)
 			perror("File error: File could not be opened.\n");
 		}
 
-		/* Redirect stdin */
+		/* Redirect stdout */
 		dup2(file2, 1);
 
 		/* Close file */
 		close(file2);
 	}
 
-	/* Call execvp function to search PATH env variable and execute command */
+	/* Call execvp function to search PATH env variable and execute command input by user */
 	status = execvp(argsArr[0], argsArr);
 
 	/* Error check execvp */ 
@@ -549,6 +544,8 @@ void executeShellProcess(char** argsArr)
 		printf("%s: command not found\n", argsArr[0]);/*"ERROR %d: %s\n", errno, strerror(errno));*/
 		exit(1);
 	}
+
+	/* Flush buffer */
 	fflush(stdout);
 
 }
