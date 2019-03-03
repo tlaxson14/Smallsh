@@ -41,6 +41,7 @@ char* readUserInput(void);
 char** parseUserInput(char*);
 bool executeUserInput(char**);
 void executeShellProcess(char**);
+bool changeDir(char **);
 
 int main()
 {
@@ -368,47 +369,8 @@ bool executeUserInput(char** argsArr)
 		/* Check arguments and then change directory based on provided arg */
 		/* printf("Entered 'cd' - Input = %s\n", *argsArr);*/
 		/* If user only enters 'cd' without any additional arguments then navigate to home directory */
-		if(argsArr[1] == NULL){
-			char* path = getenv("HOME");
-			
-			/* Change directory to new path */
-			chdir(path);
-			
-			/* Error check */
-			if(chdir(path) != 0){
-				/* Print error number and description */
-				printf("ERROR %d: %s\n", errno, strerror(errno));
-			}
-			/* DEBUG: Print path */
-			printf("Path = %s\n", path);
-			
-			/* Flush stdout */
-			fflush(stdout);
+		exitShell = changeDir(argsArr);	
 		
-			exitShell = false;
-		}
-		/* User enters additional argument to change into desired directory */
-		else if(argsArr[1] != NULL){
-
-			/* Assign new directory based on second argument input */
-			char* newDir = argsArr[1];
-
-			/* DEBUG: Print user input for new directory to navigate to */
-			printf("Entered new dir = %s\n", newDir);
-
-			/* Change into directory */
-			chdir(newDir);
-			/* Error check */
-			if(chdir(newDir) != 0){
-				/* Print error number and description */
-				printf("ERROR %d: %s\n", errno, strerror(errno));
-			}
-			
-			/* Flush stdout */
-			fflush(stdout);
-			
-			exitShell = false;
-		}
 	}
 	else if(strcmp(argsArr[0], "exit") == 0){
 		/* Kill all background processes */
@@ -548,4 +510,75 @@ void executeShellProcess(char** argsArr)
 	/* Flush buffer */
 	fflush(stdout);
 
+}
+
+/*******************************************************
+	   CHANGE DIRECTORY BUILT-IN FUNCTION  
+********************************************************
+* Name: changeDir
+* Description: 
+	Executes the built-in shell command for changing
+	directories. Error checks for directory input,
+	navigates to HOME directory if no argument given
+	after 'cd', and also returns boolean status if
+	function executes properly.
+* Input:
+	(1) - Pointer to array of char args pointers
+* Ouput: 
+  	Debugging info if error occurs during runtime
+* Returns:
+	NA
+* Sources:
+	Overall concepts and approach aided by: OSU Professor Brewster Lectures 3.1 - 3.3
+	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+******************************************************/
+bool changeDir(char** argsArr)
+{
+	char* path = NULL;
+	char* newDir = NULL;
+	bool exitStatus;
+
+	/* If no arguments given after 'cd' then navigate to HOME directory */
+	if(argsArr[1] == NULL){
+		path = getenv("HOME");
+			
+		/* Change directory to new path */
+		chdir(path);
+			
+		/* Error check */
+		if(chdir(path) != 0){		
+			/* Print error number and description */
+			printf("ERROR %d: %s\n", errno, strerror(errno));
+		}
+	
+		/* DEBUG: Print path */
+		printf("Path = %s\n", path);
+			
+		/* Flush stdout */
+		fflush(stdout);
+	}
+	/* User enters additional argument to change into desired directory */
+	else if(argsArr[1] != NULL){
+
+		/* Assign new directory based on second argument input */
+		newDir = argsArr[1];
+
+		/* DEBUG: Print user input for new directory to navigate to */
+		printf("Entered new dir = %s\n", newDir);
+
+		/* Change into directory */
+		chdir(newDir);
+	
+		/* Error check */
+		if(chdir(newDir) != 0){
+			/* Print error number and description */
+			printf("ERROR %d: %s\n", errno, strerror(errno));
+		}
+			
+		/* Flush stdout */
+		fflush(stdout);
+	}
+	
+	exitStatus = false;
+	return exitStatus;
 }
