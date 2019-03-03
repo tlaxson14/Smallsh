@@ -347,8 +347,6 @@ bool executeUserInput(char** argsArr)
 			i++;
 		}
 		*/
-		printf("\n");	
-		
 		/* Flush stdout */
 		fflush(stdout);
 		exitShell = false;
@@ -379,6 +377,7 @@ bool executeUserInput(char** argsArr)
 	}
 	else{
 		/* Code source: Lecture 3.1 - Processes */
+		/* Execute new process with command(s) */
 		pid_t spawnPid = -5;
 		int childExitMethod = -5;
 
@@ -415,13 +414,7 @@ bool executeUserInput(char** argsArr)
 			int termSignal = WTERMSIG(childExitMethod);
 			printf("Signal termination: %d\n", termSignal);
 		}
-
-		/*exit(0);*/
-	
-		/* Execute new process with command(s) */
-		/*printf("Fork new process with command\n");*/
 		exitShell = false;
-		/*return exitShell;*/
 	}
 	return exitShell;
 }
