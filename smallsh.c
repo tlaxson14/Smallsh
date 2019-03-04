@@ -29,6 +29,8 @@
 
 int argsCount;			/* Stores number of command arguments from user input */
 int smallShellPid;		/* Stores the process ID of the shell program */
+int childExitMethod;		/* Child process exit status */
+bool backgroundProc;		/* If true, process runs in the background */
 bool redirectInput;		/* True if "<" input redirection entered, else false */
 bool redirectOutput;		/* True if ">" output redirection entered, else false */
 char* inputFileName;		/* Holds the file name of the input file when input redirection used */
@@ -37,65 +39,23 @@ char* outputFileName;		/* Holds the file name of the output file when out redire
 /************************
 * FUNCTION DECLARATIONS *
 *************************/
+bool executeUserInput(char**);
+bool changeDir(char **);
 char* readUserInput(void);
 char** parseUserInput(char*);
-bool executeUserInput(char**);
 void executeShellProcess(char**);
-bool changeDir(char **);
+void killZombies(void);
+void runShell();
 
+
+
+/* Main function */
 int main()
 {
-	bool shellStatus;	/* Shell exit status flag var */
-	/* int count = 0  DEBUG counter var */ 
-	
-	/* Assign process ID to shell */
-	smallShellPid = getpid();
-	
-	/* DEBUG: Print shell proc ID 
-	printf("Shell proc ID: %d\n", smallShellPid);
-	*/
-	
-	/* Run shell loop logic */
-	do{
-
-		char* inputLine;	/* Stores user input from shell */
-		char** argsList;	/* Stores tokenized arguments from user input */
-		
-		/* Reset number of arguments */
-		argsCount = 0;		
-
-		/* Print prompt */
-		printf(": ");
-
-		/* Flush stdout */
-		fflush(stdout);
-
-		/* Read user input */
-		inputLine = readUserInput();
-
-		/* Parse user input into list of arguments */
-		argsList = parseUserInput(inputLine);	
-		
-		/* DEBUG: Print number of arguments */
-		printf("Number of arguments = %d\n", argsCount);
-
-		/* DEBUG: Print returned char strings from args list */	
-		/* for(count = 0; count < INSERT NO. OF ARGS /); count++){
-			printf("Size of argsList = %d\n", sizeof(argsList));
-			printf("Argument %d: %s\n", count+1, argsList[count]);
-		}
-		*/
-		/* Execute shell commands */
-		shellStatus = executeUserInput(argsList);
-
-		/* Deallocate heap memory used for user input and arguments array */
-		free(inputLine);
-		free(argsList);
-
-	}while(!shellStatus);
-
+	runShell();
 	return 0;
 }
+
 
 /***********************
 * FUNCTION DEFINITIONS *
@@ -201,6 +161,7 @@ char** parseUserInput(char* inputLine)
 	argsCount = 0;
 	redirectInput = false;
 	redirectOutput = false;
+	backgroundProc = false;
 
 	/* DEBUG - check memory allocation successful */
 	if(!argsArr) {
@@ -291,9 +252,22 @@ char** parseUserInput(char* inputLine)
 		/* Update string argument tokenizer for next argument */
 		arg = strtok(NULL, " \n\t");
 	}
+
 	/* Assign last index to NULL */
 	argsArr[indx] = NULL;
+	/*
+	printf("Last string char = %s\n", argsArr[indx-1]);
+	*/
+	/* Test for ampersand as last argument to handle background process management */
+	if(strcmp(argsArr[indx-1], "&") == 0){
 
+		/* Toggle background process flag */
+		backgroundProc = true;
+		printf("This is a background process\n");
+		/* Remove last arg and set to null to run proc in background */
+		argsArr[indx-1] = NULL;
+		argsCount--;
+	}
 	/* DEBUG: Print all indexed arguments */
 	/*indx = 0;
 	while(argsArr[indx] != NULL){
@@ -326,11 +300,17 @@ char** parseUserInput(char* inputLine)
 	strncmp: https://linux.die.net/man/3/strncmp
 	Waitpid helpful post: https://stackoverflow.com/questions/18154296/child-and-parent-process-id
 	OSU Professor Brewster Lectures 3.1 - 3.3
+	Kill proc in C helpful article: https://stackoverflow.com/questions/6501522/how-to-kill-a-child-process-by-the-parent-process
+	
 ******************************************************/
 bool executeUserInput(char** argsArr)
 {
-	bool exitShell;
-	int i = 0;	
+	bool exitShell;		/* Shell exit status */
+	int bgProc = 0;		/* Number of background processes */
+	int i = 0;		/* Loop counter */
+	pid_t spawnPid;		/* Child process */
+	pid_t procArr[256];	/* Stores the proc ids of all the running procs */
+	
 
 	/* If no user input, return false to keep iterating shell loop */	
 	if(argsArr[0] == NULL){
@@ -358,7 +338,7 @@ bool executeUserInput(char** argsArr)
 		exitShell = false;
 
 		/* Print exit status */
-		printf("Exit status = %d\n", exitShell);	
+		printf("Exit status: %d\n", exitShell);	
 		
 		/* Flush stdout */
 		fflush(stdout);
@@ -372,49 +352,82 @@ bool executeUserInput(char** argsArr)
 	}
 	else if(strcmp(argsArr[0], "exit") == 0){
 		/* Kill all background processes */
-		/*printf("Killing all processes\n");*/
+		printf("Killing all processes\n");
+		/* Set exit shell flag */
 		exitShell = true;
+		fflush(stdout);
+		
+		/* Iterate over and kill each background proc */
+		while(i < bgProc){
+			kill(procArr[i], SIGTERM);
+			i++;
+		}
 	}
 	else{
 		/* Code source: Lecture 3.1 - Processes */
 		/* Execute new process with command(s) */
-		pid_t spawnPid = -5;
-		int childExitMethod = -5;
+		spawnPid = -5;
+		childExitMethod = -5;
 
 		spawnPid = fork();
+		
 		if(spawnPid == -1){
 			perror("ERROR!\n");
 			exit(1);
 		}
 		else if(spawnPid == 0){
-			printf("CHILD(%d): Child sleeping for 1 second\n", getpid());
+			/*printf("CHILD(%d): Child sleeping for 1 second\n", getpid());*/
+		
+			/* Flush stdout */
+			fflush(stdout);
+		
 			sleep(1);
 			/*printf("CHILD(%d): Converting into command 'ls -a'\n", getpid());
 			*/
-			printf("Executing child process..\n");
+			/*printf("Executing child process..\n");*/
 			executeShellProcess(argsArr);
 			/*execlp("ls", "ls", "-a", NULL);
 			perror("CHILD: exec failure!\n");
 			*/
 			exit(0);
 		}
-		printf("PARENT(%d): Sleeping for 2 seconds.\n", getpid());
-		sleep(2);
+	/*	printf("PARENT(%d): Sleeping for 2 seconds.\n", getpid());
+	*/	fflush(stdout);
+		sleep(1);
+		/*
 		printf("PARENT(%d): Waiting for child(%d) to terminate.\n", getpid(), spawnPid);
-		pid_t actualPid = waitpid(spawnPid, &childExitMethod, 0);
-		printf("PARENT(%d): Child(%d) terminated, Exiting!\n", getpid(), actualPid);
+		*/
+		/* Check for background process */
+		if(backgroundProc){
 
-		if(WIFEXITED(childExitMethod)){
-			printf("The process exited normally!\n");
-			int exitStatus = WEXITSTATUS(childExitMethod);
-			printf("Exit status: %d\n", exitStatus);
+			/* Add child process to array of background process */
+			procArr[bgProc] = spawnPid;
+			/* Increment number of background process */
+			bgProc++;
+			
+			printf("Background pid: %d\n", spawnPid);
+			fflush(stdout);
 		}
-		else if(WIFSIGNALED(childExitMethod)){
-			printf("The process exited normally!\n");
-			int termSignal = WTERMSIG(childExitMethod);
-			printf("Signal termination: %d\n", termSignal);
+		else{
+
+			pid_t actualPid = waitpid(spawnPid, &childExitMethod, 0);
+			/*printf("PARENT(%d): Child(%d) terminated, Exiting!\n", getpid(), actualPid);
+			*/
+			fflush(stdout);
+
+			if(WIFEXITED(childExitMethod)){
+				/*printf("The process exited normally!\n");*/
+				int exitStatus = WEXITSTATUS(childExitMethod);
+				printf("Exit status: %d\n", exitStatus);
+			}
+			else if(WIFSIGNALED(childExitMethod)){
+				printf("The process exited normally!\n");
+				int termSignal = WTERMSIG(childExitMethod);
+				printf("Signal termination: %d\n", termSignal);
+			}
 		}
 		exitShell = false;
+
 	}
 	return exitShell;
 }
@@ -452,6 +465,8 @@ void executeShellProcess(char** argsArr)
 	/* Initialize file descriptors for redirection operations */
 	int file1;
 	int file2;
+	
+	/* Return status for exec call */
 	int status = 0;
 
 	/* Check global input redirection var to see if input redirection needed */
@@ -471,12 +486,42 @@ void executeShellProcess(char** argsArr)
 		/* Close file */
 		close(file1);
 	}
+	else if(backgroundProc){
 
+		/* Redirect background command stdin from dev/null/ */
+		file1 = open("/dev/null", O_RDONLY);
+		
+		/* Error check file opened */
+		if(file1 == -1){
+			perror("File error: File could not be opened.\n");
+		}
+		
+		/* Redirect stdin */
+		dup2(file1, 0);
+
+		/* Close file */
+		close(file1);
+	}
 	/* Check global output redirection var to see if output redirection needed */
 	if(redirectOutput){
 
 		/* Open the input file for redirecting std output, so must open file to write/create if file DNE with file permissions   */
-		file2 = open(outputFileName, O_WRONLY | O_APPEND | O_CREAT | O_TRUNC, 0644);
+		file2 = open(outputFileName, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+		/* Validate file opened without error */
+		if(file2 == -1){
+			perror("File error: File could not be opened.\n");
+		}
+
+		/* Redirect stdout */
+		dup2(file2, 1);
+
+		/* Close file */
+		close(file2);
+	}
+	else if(backgroundProc){
+		/* Open dev null to redirect stdout */
+		file2 = open("/dev/null", O_WRONLY);
 
 		/* Validate file opened without error */
 		if(file2 == -1){
@@ -524,12 +569,13 @@ void executeShellProcess(char** argsArr)
 * Sources:
 	Overall concepts and approach aided by: OSU Professor Brewster Lectures 3.1 - 3.3
 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+	chdir man: http://man7.org/linux/man-pages/man2/chdir.2.html
 ******************************************************/
 bool changeDir(char** argsArr)
 {
-	char* path = NULL;
-	char* newDir = NULL;
-	bool exitStatus;
+	char* path = NULL;	/* Environment variable for home directory */
+	char* newDir = NULL;	/* Name of user input directory */
+	bool exitStatus;	/* Exit status for shell */
 
 	/* If no arguments given after 'cd' then navigate to HOME directory */
 	if(argsArr[1] == NULL){
@@ -545,7 +591,7 @@ bool changeDir(char** argsArr)
 		}
 	
 		/* DEBUG: Print path */
-		printf("Path = %s\n", path);
+		/*printf("Path = %s\n", path);*/
 			
 		/* Flush stdout */
 		fflush(stdout);
@@ -557,7 +603,7 @@ bool changeDir(char** argsArr)
 		newDir = argsArr[1];
 
 		/* DEBUG: Print user input for new directory to navigate to */
-		printf("Entered new dir = %s\n", newDir);
+		/* printf("Entered new dir = %s\n", newDir); */
 
 		/* Change into directory */
 		chdir(newDir);
@@ -575,3 +621,114 @@ bool changeDir(char** argsArr)
 	exitStatus = false;
 	return exitStatus;
 }
+
+
+/*******************************************************
+	   	  KILL ZOMBIES FUNCTION  
+********************************************************
+* Name: killZombies
+* Description: 
+	Executes the zombie process management algorithm
+	and checks if the child process is exited using
+	waitpid before printing the background process 
+	ID and the exit status.   
+* Input:
+	NA
+* Ouput: 
+  	1 - Background pid integer
+	2 - Exit status integer
+* Returns:
+	NA
+* Sources:
+	Code and concepts aided by: OSU Professor Brewster Lectures 3.1
+	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+	Add. implementation source: https://www.geeksforgeeks.org/wait-system-call-c/
+	Process completion status macros: http://www.gnu.org/software/libc/manual/html_node/Process-Completion-Status.html
+	WNOHANG source: https://www.gnu.org/software/libc/manual/html_node/Process-Completion.html
+********************************************************/
+void killZombies()
+{
+		pid_t pid;		
+
+		pid = waitpid(-1, &childExitMethod, WNOHANG);
+		
+		/* Check return status of waitpid */
+		if(pid > 0){
+			/* Check if bg child process terminated normally */
+			if(WIFEXITED(childExitMethod)){
+				/* Print background pid and exit status of bg proc */
+				printf("Background pid: %d\nExit status: %d\n", pid, WEXITSTATUS(childExitMethod));  
+			}
+		}
+		fflush(stdout);
+}
+
+/*******************************************************
+	     RUN SMALL SHELL LOOP FUNCTION  
+********************************************************
+* Name: runShell
+* Description: 
+	Contains all of the execution logic to run the
+	smallsh program.  
+* Input:
+	NA
+* Ouput: 
+  	Smallsh program output
+* Returns:
+	NA
+* Sources:
+	~ Everything sourced above
+********************************************************/
+void runShell()
+{
+	bool shellStatus;	/* Shell exit status flag var */	
+	/* int count = 0  DEBUG counter var */ 
+	
+	/* Assign process ID to shell */
+	smallShellPid = getpid();
+	
+	/* DEBUG: Print shell proc ID 
+	printf("Shell proc ID: %d\n", smallShellPid);
+	*/
+	
+	/* Run shell loop logic */
+	do{
+
+		char* inputLine;	/* Stores user input from shell */
+		char** argsList;	/* Stores tokenized arguments from user input */
+		argsCount = 0;		/* Number of arguments, resets for each iteration */
+
+		/* Zombie process management */
+		killZombies();
+
+		/* Print prompt */
+		printf(": ");
+
+		/* Flush stdout */
+		fflush(stdout);
+
+		/* Read user input */
+		inputLine = readUserInput();
+
+		/* Parse user input into list of arguments */
+		argsList = parseUserInput(inputLine);	
+		
+		/* DEBUG: Print number of arguments */
+		/*printf("Number of arguments = %d\n", argsCount);*/
+
+		/* DEBUG: Print returned char strings from args list */	
+		/* for(count = 0; count < INSERT NO. OF ARGS /); count++){
+			printf("Size of argsList = %d\n", sizeof(argsList));
+			printf("Argument %d: %s\n", count+1, argsList[count]);
+		}
+		*/
+		/* Execute shell commands */
+		shellStatus = executeUserInput(argsList);
+
+		/* Deallocate heap memory used for user input and arguments array */
+		free(inputLine);
+		free(argsList);
+
+	}while(!shellStatus);
+}
+
