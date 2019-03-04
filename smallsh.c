@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 
 /***********************
 *   GLOBAL CONSTANTS   *
@@ -27,8 +28,14 @@
 #define MAX_CHARS 2048
 #define MAX_ARGS 512
 
+
+int exitStatus = 0;		/* Tracks the exit status of the shell */
 int argsCount;			/* Stores number of command arguments from user input */
 int smallShellPid;		/* Stores the process ID of the shell program */
+int childExitMethod;		/* Child process exit status */		
+int procStatus;			/* Current child process status - replaced childexitmethod */
+bool backgroundProc;		/* If true, process runs in the background */
+bool foregroundMode = false; 	/* If true, signal SIGSTP rec'd, else false */
 bool redirectInput;		/* True if "<" input redirection entered, else false */
 bool redirectOutput;		/* True if ">" output redirection entered, else false */
 char* inputFileName;		/* Holds the file name of the input file when input redirection used */
@@ -37,15 +44,46 @@ char* outputFileName;		/* Holds the file name of the output file when out redire
 /************************
 * FUNCTION DECLARATIONS *
 *************************/
+bool executeUserInput(char**);
+bool changeDir(char **);
 char* readUserInput(void);
 char** parseUserInput(char*);
-bool executeUserInput(char**);
+void smallShell();
 void executeShellProcess(char**);
-bool changeDir(char **);
+void catchSIGTSTP(int);
+void killZombies(void);
 
+
+/* MAIN FUNCTION */
 int main()
 {
-	bool shellStatus;	/* Shell exit status flag var */
+	smallShell();
+	return 0;
+}
+
+
+
+/*******************************************************
+	     RUN SMALL SHELL LOOP FUNCTION  
+********************************************************
+* Name: runShell
+* Description: 
+	Contains all of the execution logic to run the
+	smallsh program.  
+* Input:
+	NA
+* Ouput: 
+  	Smallsh program output
+* Returns:
+	NA
+* Sources:
+	~ Everything sourced above
+	Catching and ignoring signal code: Prof. Brewster Lecture 3.3 - Signals 
+	
+********************************************************/
+void smallShell()
+{
+	bool shellStatus;	/* Shell exit status flag var */	
 	/* int count = 0  DEBUG counter var */ 
 	
 	/* Assign process ID to shell */
@@ -54,15 +92,16 @@ int main()
 	/* DEBUG: Print shell proc ID 
 	printf("Shell proc ID: %d\n", smallShellPid);
 	*/
-	
+
 	/* Run shell loop logic */
 	do{
 
 		char* inputLine;	/* Stores user input from shell */
 		char** argsList;	/* Stores tokenized arguments from user input */
-		
-		/* Reset number of arguments */
-		argsCount = 0;		
+		argsCount = 0;		/* Number of arguments, resets for each iteration */
+
+		/* Zombie process management to clean up zombie procs */
+		killZombies();
 
 		/* Print prompt */
 		printf(": ");
@@ -77,7 +116,7 @@ int main()
 		argsList = parseUserInput(inputLine);	
 		
 		/* DEBUG: Print number of arguments */
-		printf("Number of arguments = %d\n", argsCount);
+		/*printf("Number of arguments = %d\n", argsCount);*/
 
 		/* DEBUG: Print returned char strings from args list */	
 		/* for(count = 0; count < INSERT NO. OF ARGS /); count++){
@@ -93,13 +132,9 @@ int main()
 		free(argsList);
 
 	}while(!shellStatus);
-
-	return 0;
 }
 
-/***********************
-* FUNCTION DEFINITIONS *
-************************/
+
 
 /*******************************************************
 		READ USER INPUT FUNCTION
@@ -124,7 +159,7 @@ int main()
 ******************************************************/
 char* readUserInput(void)
 {
-	char* inputBuffer = NULL;/* = malloc(MAX_CHARS * sizeof(char));*/
+	char* inputBuffer = NULL;
 	size_t charsEntered;						
 	size_t bufferSize = MAX_CHARS;
 
@@ -147,6 +182,8 @@ char* readUserInput(void)
 	/* fflush(stdout); */
 	return inputBuffer;
 }
+
+
 
 /******************************************************
      PARSE USER INPUT INTO SHELL COMMANDS FUNCTION     
@@ -193,7 +230,8 @@ char** parseUserInput(char* inputLine)
 	char* argsBuffer = malloc(MAX_ARGS * sizeof(char*));		/* Allocate memory for argument input array for $$ var expansion */
 	char** argsArr = (char**)malloc(MAX_ARGS * sizeof(char*));	/* Allocate memory for pointer to array of ptrs with args */
 	int indx = 0;							/* Array index */
-
+	int i = 0;
+		
 	/* Get the size of the string buffer required to hold conversion from int to string */	
 	char stringBuffer[snprintf(NULL, 0, "%d", smallShellPid) + 1];
 
@@ -201,6 +239,7 @@ char** parseUserInput(char* inputLine)
 	argsCount = 0;
 	redirectInput = false;
 	redirectOutput = false;
+	backgroundProc = false;
 
 	/* DEBUG - check memory allocation successful */
 	if(!argsArr) {
@@ -211,7 +250,9 @@ char** parseUserInput(char* inputLine)
 	/* Perform variable expansion if $$ located */
 	if(strstr(inputLine, "$$") != NULL){
 		/* printf("Double dolla holla!\n"); */
-		printf("Shell pid = %d\n", smallShellPid);
+		/* Print proc ID */
+		printf("%d\n", smallShellPid);
+		fflush(stdout);
 
 		/* Convert and store shell pid in string buffer */
 		sprintf(stringBuffer, "%d", smallShellPid); 
@@ -239,7 +280,6 @@ char** parseUserInput(char* inputLine)
 		/* Copy new argsBuffer into inputLine var */	
 		strcpy(inputLine, argsBuffer);
 		/* DEBUG: Print inputLine */
-		/* printf("Input Line = %s\n", inputLine); */
 	}		
 
 	/*size_t argsMax = MAX_ARGS;*/		/* Max number of allowed args */
@@ -264,9 +304,9 @@ char** parseUserInput(char* inputLine)
 		}
 		else if(strcmp(arg, ">") == 0){
 			redirectOutput = true;
-			/* DEBUG: Print confirmation 
-			printf("Entered output redirection operator\n");
-			*/
+			/* DEBUG: Print confirmation */
+		/*	printf("Entered output redirection operator\n");*/
+			
 		}
 		else{
 			/* If input redirection assign tokenized arg as input file */
@@ -291,9 +331,35 @@ char** parseUserInput(char* inputLine)
 		/* Update string argument tokenizer for next argument */
 		arg = strtok(NULL, " \n\t");
 	}
+
 	/* Assign last index to NULL */
 	argsArr[indx] = NULL;
+	/*
+	printf("Last string char = %s\n", argsArr[indx-1]);
+	*/
+	/* Test for ampersand as last argument to handle background process management */
+	if(strcmp(argsArr[indx-1], "&") == 0){
+		/* Check to see if the foreground only mode is false */
+		if(foregroundMode == false){
+	
+			/* Toggle background process flag */
+			backgroundProc = true;
+			/*printf("This is a background process\n");*/
+			/* Remove last arg and set to null to run proc in background */
+			argsArr[indx-1] = NULL;
+			argsCount--;
+		}
+	}
 
+	/* Remove the ampersand if proc disbled from run in the background */
+	for(i=0; i < argsCount; i++){
+		if(strcmp(argsArr[i], "&") == 0){
+			/*DEBUG: Print */
+			if(foregroundMode == true){
+				argsArr[i] = argsArr[i+1];
+			}
+		}
+	}
 	/* DEBUG: Print all indexed arguments */
 	/*indx = 0;
 	while(argsArr[indx] != NULL){
@@ -306,6 +372,8 @@ char** parseUserInput(char* inputLine)
 	free(argsBuffer);
 	return argsArr;
 }
+
+
 
 /*******************************************************
     EXECUTE COMMANDS PROVIDED BY USER INPUT FUNCTION  
@@ -325,12 +393,35 @@ char** parseUserInput(char* inputLine)
 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
 	strncmp: https://linux.die.net/man/3/strncmp
 	Waitpid helpful post: https://stackoverflow.com/questions/18154296/child-and-parent-process-id
-	OSU Professor Brewster Lectures 3.1 - 3.3
+	OSU Professor Brewster Lectures 3.1 - 3.3, especially signals
+	Kill proc in C helpful article: https://stackoverflow.com/questions/6501522/how-to-kill-a-child-process-by-the-parent-process
+	struct sigaction warning fix: https://stackoverflow.com/questions/13746033/how-to-repair-warning-missing-braces-around-initializer
+	flags for sigaction: https://www.gnu.org/software/libc/manual/html_node/Flags-for-Sigaction.html
 ******************************************************/
 bool executeUserInput(char** argsArr)
 {
-	bool exitShell;
-	int i = 0;	
+	bool exitShell;		/* Shell exit status */
+	int bgProc = 0;		/* Number of background processes */
+	int i = 0;		/* Loop counter */
+
+	char status[512];
+	pid_t spawnPid;		/* Child process */
+	pid_t procArr[512];	/* Stores the proc ids of all the running procs */
+	
+	/* Initialize instances of sigaction struct to handle signal handling function */
+	struct sigaction default_action = {{0}}, ignore_action = {{0}}, SIGTSTP_action = {{0}};
+	default_action.sa_handler = SIG_DFL;
+	ignore_action.sa_handler = SIG_IGN;
+	sigaction(SIGINT, &ignore_action, NULL);
+
+	SIGTSTP_action.sa_handler = catchSIGTSTP;
+	sigfillset(&SIGTSTP_action.sa_mask);
+	SIGTSTP_action.sa_flags = SA_RESTART;
+	sigaction(SIGTSTP, &SIGTSTP_action, NULL);
+	
+	/* Zero out buffers */
+	memset(status, '\0', sizeof(status));
+	memset(procArr, '\0', sizeof(procArr));
 
 	/* If no user input, return false to keep iterating shell loop */	
 	if(argsArr[0] == NULL){
@@ -358,8 +449,7 @@ bool executeUserInput(char** argsArr)
 		exitShell = false;
 
 		/* Print exit status */
-		printf("Exit status = %d\n", exitShell);	
-		
+		printf("exit value %d\n", exitStatus);
 		/* Flush stdout */
 		fflush(stdout);
 	}
@@ -373,51 +463,100 @@ bool executeUserInput(char** argsArr)
 	else if(strcmp(argsArr[0], "exit") == 0){
 		/* Kill all background processes */
 		/*printf("Killing all processes\n");*/
+		/* Set exit shell flag */
 		exitShell = true;
+		fflush(stdout);
+		
+		/* Iterate over and kill each background proc */
+		while(i < bgProc){
+			kill(procArr[i], SIGTERM);
+			i++;
+		}
 	}
 	else{
 		/* Code source: Lecture 3.1 - Processes */
 		/* Execute new process with command(s) */
-		pid_t spawnPid = -5;
-		int childExitMethod = -5;
-
+		spawnPid = -5;
+		/*childExitMethod = -5;
+		*/
+		/* Create new process */
 		spawnPid = fork();
+		
+		/* Error creating process */
 		if(spawnPid == -1){
 			perror("ERROR!\n");
 			exit(1);
 		}
+		/* Successfully created child process */
 		else if(spawnPid == 0){
-			printf("CHILD(%d): Child sleeping for 1 second\n", getpid());
-			sleep(1);
+			/*printf("CHILD(%d): Child sleeping for 1 second\n", getpid());*/
+					
+			/* Check if background process or not, and if not enables the foreground proc to be interrupted */
+			if(!backgroundProc){
+				sigaction(SIGINT, &default_action, NULL); 
+			}
+
+			/* Flush stdout */
+			fflush(stdout);
+		
+			/*sleep(1);*/
 			/*printf("CHILD(%d): Converting into command 'ls -a'\n", getpid());
 			*/
-			printf("Executing child process..\n");
+			/*printf("Executing child process..\n");*/
 			executeShellProcess(argsArr);
 			/*execlp("ls", "ls", "-a", NULL);
 			perror("CHILD: exec failure!\n");
 			*/
 			exit(0);
 		}
-		printf("PARENT(%d): Sleeping for 2 seconds.\n", getpid());
-		sleep(2);
+		/* Parent process */
+	/*	printf("PARENT(%d): Sleeping for 2 seconds.\n", getpid());
+	*/	fflush(stdout);
+	/*	sleep(1); */
+		/*
 		printf("PARENT(%d): Waiting for child(%d) to terminate.\n", getpid(), spawnPid);
-		pid_t actualPid = waitpid(spawnPid, &childExitMethod, 0);
-		printf("PARENT(%d): Child(%d) terminated, Exiting!\n", getpid(), actualPid);
+		*/
+		/* Check for background process */
+		if(backgroundProc){
 
-		if(WIFEXITED(childExitMethod)){
-			printf("The process exited normally!\n");
-			int exitStatus = WEXITSTATUS(childExitMethod);
-			printf("Exit status: %d\n", exitStatus);
+			/* Add child process to array of background process */
+			procArr[bgProc] = spawnPid;
+			/* Increment number of background process */
+			bgProc++;
+			
+			printf("background pid is %d\n", spawnPid);
+			fflush(stdout);
 		}
-		else if(WIFSIGNALED(childExitMethod)){
-			printf("The process exited normally!\n");
-			int termSignal = WTERMSIG(childExitMethod);
-			printf("Signal termination: %d\n", termSignal);
+		else{
+
+			waitpid(spawnPid, &procStatus/*&childExitMethod,*/, 0);
+			/*printf("PARENT(%d): Child(%d) terminated, Exiting!\n", getpid(), actualPid);
+			*/
+			fflush(stdout);
+
+			if(WIFEXITED(procStatus)){
+				/*printf("The process exited normally!\n");*/
+				sprintf(status, "Exit value: %d\n", WEXITSTATUS(procStatus));
+				exitStatus = WEXITSTATUS(procStatus);
+				/*printf("%d\n", exitStatus);*/
+			}
+
+			if(WIFSIGNALED(procStatus)){
+				/*int termSignal = WTERMSIG(childExitMethod);*/
+				sprintf(status, "Terminated by signal: %d", WTERMSIG(procStatus));
+				exitStatus = WEXITSTATUS(procStatus);
+				/*printf("%s\n", status);*/
+				fflush(stdout);
+			}
 		}
 		exitShell = false;
+		fflush(stdout);
+
 	}
 	return exitShell;
 }
+
+
 
 /*******************************************************
   EXECUTE NON-BUILT IN COMMANDS INPUT BY USER FUNCTION  
@@ -452,6 +591,8 @@ void executeShellProcess(char** argsArr)
 	/* Initialize file descriptors for redirection operations */
 	int file1;
 	int file2;
+	
+	/* Return status for exec call */
 	int status = 0;
 
 	/* Check global input redirection var to see if input redirection needed */
@@ -462,7 +603,11 @@ void executeShellProcess(char** argsArr)
 
 		/* Validate file opened without error */
 		if(file1 == -1){
-			perror("File error: File could not be opened.\n");
+			printf("cannot open %s for input\n", inputFileName);
+			/* Flush buffer */
+			fflush(stdout);
+			procStatus = 1;
+			exit(1);
 		}
 
 		/* Redirect stdin */
@@ -471,16 +616,40 @@ void executeShellProcess(char** argsArr)
 		/* Close file */
 		close(file1);
 	}
+	/* Check is background proc running */	
+	if(backgroundProc){
 
+		/* Redirect background command stdin from dev/null/ */
+		file1 = open("/dev/null", O_RDONLY);
+		
+		/* Error check file opened */
+		if(file1 == -1){
+			printf("cannot open dev/null for input\n");
+			/* Flush buffer */
+			fflush(stdout);
+			procStatus = 1;
+			exit(1);
+		}
+		
+		/* Redirect stdin */
+		dup2(file1, 0);
+
+		/* Close file */
+		close(file1);
+	}
 	/* Check global output redirection var to see if output redirection needed */
 	if(redirectOutput){
 
 		/* Open the input file for redirecting std output, so must open file to write/create if file DNE with file permissions   */
-		file2 = open(outputFileName, O_WRONLY | O_APPEND | O_CREAT | O_TRUNC, 0644);
+		file2 = open(outputFileName, O_CREAT | O_WRONLY | O_TRUNC, 0644);
 
 		/* Validate file opened without error */
 		if(file2 == -1){
-			perror("File error: File could not be opened.\n");
+			printf("cannot open %s for output\n", outputFileName);
+			/* Flush buffer */
+			fflush(stdout);
+			procStatus = 1;
+			exit(1);
 		}
 
 		/* Redirect stdout */
@@ -489,14 +658,33 @@ void executeShellProcess(char** argsArr)
 		/* Close file */
 		close(file2);
 	}
+	else if(backgroundProc){
+	
+		/* Open dev null to redirect stdout */
+		file2 = open("/dev/null", O_WRONLY);
 
+		/* Validate file opened without error */
+		if(file2 == -1){
+			printf("cannot open dev/null for output\n");
+			procStatus = 1;
+			exit(1);
+		}
+
+		/* Redirect stdout */
+		dup2(file2, 1);
+
+		/* Close file */
+		close(file2);
+	}
+	
 	/* Call execvp function to search PATH env variable and execute command input by user */
 	status = execvp(argsArr[0], argsArr);
 
 	/* Error check execvp */ 
 	if(status == -1){
 		/* Print error number and description */
-		printf("%s: command not found\n", argsArr[0]);/*"ERROR %d: %s\n", errno, strerror(errno));*/
+		printf("%s: no such file or directory\n", argsArr[0]);/*"ERROR %d: %s\n", errno, strerror(errno));*/
+		procStatus = 1;
 		exit(1);
 	}
 
@@ -504,6 +692,8 @@ void executeShellProcess(char** argsArr)
 	fflush(stdout);
 
 }
+
+
 
 /*******************************************************
 	   CHANGE DIRECTORY BUILT-IN FUNCTION  
@@ -524,12 +714,13 @@ void executeShellProcess(char** argsArr)
 * Sources:
 	Overall concepts and approach aided by: OSU Professor Brewster Lectures 3.1 - 3.3
 	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+	chdir man: http://man7.org/linux/man-pages/man2/chdir.2.html
 ******************************************************/
 bool changeDir(char** argsArr)
 {
-	char* path = NULL;
-	char* newDir = NULL;
-	bool exitStatus;
+	char* path = NULL;	/* Environment variable for home directory */
+	char* newDir = NULL;	/* Name of user input directory */
+	bool statusCheck;	/* Exit status for shell */
 
 	/* If no arguments given after 'cd' then navigate to HOME directory */
 	if(argsArr[1] == NULL){
@@ -545,7 +736,7 @@ bool changeDir(char** argsArr)
 		}
 	
 		/* DEBUG: Print path */
-		printf("Path = %s\n", path);
+		/*printf("Path = %s\n", path);*/
 			
 		/* Flush stdout */
 		fflush(stdout);
@@ -557,10 +748,10 @@ bool changeDir(char** argsArr)
 		newDir = argsArr[1];
 
 		/* DEBUG: Print user input for new directory to navigate to */
-		printf("Entered new dir = %s\n", newDir);
+		/* printf("Entered new dir = %s\n", newDir); */
 
 		/* Change into directory */
-		chdir(newDir);
+		/*chdir(newDir);*/
 	
 		/* Error check */
 		if(chdir(newDir) != 0){
@@ -572,6 +763,102 @@ bool changeDir(char** argsArr)
 		fflush(stdout);
 	}
 	
-	exitStatus = false;
-	return exitStatus;
+	statusCheck = false;
+	return statusCheck;
+}
+
+
+
+/*******************************************************
+	   	  KILL ZOMBIES FUNCTION  
+********************************************************
+* Name: killZombies
+* Description: 
+	Executes the zombie process management algorithm
+	and checks if the child process is exited using
+	waitpid before printing the background process 
+	ID and the exit status.   
+* Input:
+	NA
+* Ouput: 
+  	1 - Background pid integer
+	2 - Exit status integer
+* Returns:
+	NA
+* Sources:
+	Code and concepts aided by: OSU Professor Brewster Lectures 3.1
+	Tutorial: https://brennan.io/2015/01/16/write-a-shell-in-c/
+	Add. implementation source: https://www.geeksforgeeks.org/wait-system-call-c/
+	Process completion status macros: http://www.gnu.org/software/libc/manual/html_node/Process-Completion-Status.html
+	WNOHANG source: https://www.gnu.org/software/libc/manual/html_node/Process-Completion.html
+********************************************************/
+void killZombies()
+{
+		pid_t pid;		
+
+		pid = waitpid(-1, &procStatus, WNOHANG);
+		
+		/* Check return status of waitpid */
+		if(pid > 0){
+			/* Check if bg child process terminated normally */
+			if(WIFEXITED(procStatus)){
+				/* Print background pid and exit status of bg proc */
+				printf("background pid %d is done: exit value %d\n", pid, WEXITSTATUS(procStatus/*childExitMethod*/));  
+			}
+			/* Check if process was terminated by signal */
+			else if(WIFSIGNALED(procStatus/*childExitMethod*/)){
+				/* Print background pid and exit status of bg proc */
+				printf("background pid %d is done: terminated by signal %d\n", pid, WTERMSIG(procStatus/*childExitMethod*/));  
+			}
+		}
+		fflush(stdout);
+}
+
+
+
+/*******************************************************
+	        CATCH STOP SIGNAL FUNCTION  
+********************************************************
+* Name: catchSIGTSTP
+* Description: 
+	Meant to catch the stop signal and display 
+	message depending on if foreground only mode
+	enabled or disabled. Needs bug fix.
+* Input:
+	NA
+* Ouput: 
+  	Smallsh program output
+* Returns:
+	NA
+* Sources:
+	Catching and ignoring signal code: Prof. Brewster Lecture 3.4 - More UNIX IO 
+	Write function: http://codewiki.wikidot.com/c:system-calls:write
+	write man: https://linux.die.net/man/2/write
+	More write help: https://pubs.opengroup.org/onlinepubs/007904875/functions/write.html/
+********************************************************/
+void catchSIGTSTP(int signal)
+{
+	char* enter = "Entering foreground-only mode (& is now ignored)\n";
+	char* exit = "Exiting foreground-only mode\n";	
+
+	/* Check if the foreground mode is enabled or not */
+	/* If not enabled */
+	if(!foregroundMode){
+
+		/* Enable foreground mode */
+		foregroundMode = true;
+	
+		/* Peform write on file, avoid strlen due to non-reentrancy */
+		write(STDOUT_FILENO, enter, 100);	
+		fflush(stdout);
+	}
+	/* If foreground process enabled */
+	else{
+		/* Write to file, avoid strlen due to non re-entrancy */
+		write(STDOUT_FILENO, exit, 100);
+		
+		/* Togggle foreground global var to disable foreground only */
+		foregroundMode = false;
+		fflush(stdout);
+	}
 }
